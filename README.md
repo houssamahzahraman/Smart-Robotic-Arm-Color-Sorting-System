@@ -65,16 +65,13 @@ https://github.com/user-attachments/assets/18b7d5b6-932e-4e64-a2fc-527ae59b1a16
 |---|---|---|---|
 | 6-DOF Robotic Arm | ROT3U Aluminum | 1 | $90 |
 | Servo Motors | MG996R 11kg.cm | 6 | included |
-| Microcontroller | ESP8266 NodeMCU | 1 | $5 |
-| PWM Driver | PCA9685 16-ch I2C | 1 | $5 |
-| Webcam | USB 720p | 1 | $10 |
+| Microcontroller | ESP8266 NodeMCU | 1 | $10 |
+| PWM Driver | PCA9685 16-ch I2C | 1 | $8 |
+| Webcam | USB 720p | 1 | $30 |
 | Power Supply | 6V / 5A | 1 | $10 |
 | Base + Boxes | Wooden board | 1 set | $8 |
-| **Total** | | | **~$128** |
+| **Total** | | | **~$156** |
 
-```
-[ PHOTO HERE — All hardware components laid out ]
-```
 
 ### Wiring
 
@@ -95,9 +92,8 @@ https://github.com/user-attachments/assets/18b7d5b6-932e-4e64-a2fc-527ae59b1a16
 | ch4 | Gripper | Open / Close | 320 |
 | ch5 | Elbow 2 | Vertical | 200 |
 
-```
-[ PHOTO HERE — Wiring diagram of ESP8266 to PCA9685 to servos ]
-```
+<img width="1321" height="676" alt="Screenshot 2026-05-23 164044" src="https://github.com/user-attachments/assets/789fe4cc-4f61-4f2d-8ef0-140a946edce9" />
+
 
 ---
 
@@ -143,39 +139,10 @@ https://github.com/user-attachments/assets/18b7d5b6-932e-4e64-a2fc-527ae59b1a16
 
 ## System Architecture
 
-The system follows a four-layer architecture:
+<img width="1188" height="574" alt="image" src="https://github.com/user-attachments/assets/6d889245-e139-41d1-9bb5-60150a910473" />
+<img width="1183" height="568" alt="image" src="https://github.com/user-attachments/assets/da327e93-66d1-4c96-bcbd-a248126592fd" />
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    PERCEPTION LAYER                          │
-│   USB Webcam → OpenCV detect.py → Flask /detect             │
-│   (perspective transform · HSV · contour · pixel→cm)        │
-└─────────────────────────────┬───────────────────────────────┘
-                              │ HTTP POST
-┌─────────────────────────────▼───────────────────────────────┐
-│                 PROCESSING & COMMUNICATION LAYER             │
-│   Flask Server ──WiFi──► ESP8266 ──I2C──► PCA9685 ──► Arm  │
-│                ◄── POST /done ──────────────────────────────│
-└───────────────┬─────────────────────────────────────────────┘
-                │ WebSocket · REST
-┌───────────────▼─────────────────────────────────────────────┐
-│                   PRESENTATION LAYER                         │
-│   Web Dashboard (Live Stats · Gamepad)                       │
-│   Admin Dashboard (Charts · Accuracy · History)             │
-└───────────────┬─────────────────────────────────────────────┘
-                │ SQL queries
-┌───────────────▼─────────────────────────────────────────────┐
-│                      DATA LAYER                              │
-│   MySQL sorting_db → sorting_events table                    │
-│   id · color · x · y · timestamp · success                  │
-└─────────────────────────────────────────────────────────────┘
-```
 
-```
-[ PHOTO HERE — System architecture diagram ]
-```
-
----
 
 ## Inverse Kinematics
 
@@ -221,9 +188,8 @@ L34 = L3 + L4 = 24 cm
 | L4 | Elbow 2 | Gripper | 14.5 cm |
 | L34 | Combined | Elbow 1 → Gripper | 24.0 cm |
 
-```
-[ PHOTO HERE — IK geometry diagram showing all angles and link lengths ]
-```
+<img width="1192" height="578" alt="image" src="https://github.com/user-attachments/assets/a35414b3-ced5-4171-8121-dbe252140645" />
+
 
 ---
 
@@ -355,28 +321,7 @@ robotic-arm-sorting/
 └── README.md
 ```
 
----
 
-## Results
-
-The system was tested over 30 consecutive sorting trials under stable indoor lighting:
-
-| Metric | Result |
-|---|---|
-| Total trials | 30 blocks |
-| Successfully sorted | 28 blocks |
-| Success rate | 93.3% |
-| Color detection accuracy | 95% |
-| Average cycle time | 8–10 seconds |
-| Total hardware cost | ~$128 |
-
-```
-[ PHOTO HERE — Results table or chart ]
-```
-
-```
-[ PHOTO HERE — Arm sorting a block during live testing ]
-```
 
 ---
 
@@ -391,11 +336,3 @@ The system was tested over 30 consecutive sorting trials under stable indoor lig
 
 ---
 
-## License
-
-This project was developed as a senior project at the Lebanese International University and is shared for educational purposes.
-
----
-
-*Lebanese International University — CENG495 — Spring 2025–2026*
-*Hussam Zahraman · Mosaab Zein · Oday Kassar*
