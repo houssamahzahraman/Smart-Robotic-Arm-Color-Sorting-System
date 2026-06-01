@@ -18,9 +18,7 @@
 - [Installation and Setup](#installation-and-setup)
 - [How to Run](#how-to-run)
 - [File Structure](#file-structure)
-- [Results](#results)
 - [Future Work](#future-work)
-- [License](#license)
 
 ---
 
