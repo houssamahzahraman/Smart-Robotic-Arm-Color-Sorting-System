@@ -30,22 +30,18 @@ This project presents a complete low-cost intelligent system for automatic color
 
 The system detects the color and real-world position of colored blocks placed in a calibrated workspace zone using a USB webcam and the OpenCV library. It then computes the required servo joint angles using an embedded Inverse Kinematics solver on the ESP8266 microcontroller, moves the arm to pick up the block, and places it into the correct sorting box.
 
-```
-<img width="1280" height="960" alt="photo_2026-05-18_20-05-13" src="https://github.com/user-attachments/assets/bfef8fac-db3d-49c7-bcf3-320647277b8b" />
+<img width="1280" height="960" alt="photo_2026-05-18_20-05-13" src="https://github.com/user-attachments/assets/7dead123-9f1c-4032-9b94-2957dd803a12" />
 
-```
-
----
 
 ## System Demo
 
-```
-[ PHOTO HERE — GIF or screenshot of the arm sorting a red block ]
-```
 
-```
-[ PHOTO HERE — Screenshot of the web dashboard showing live statistics ]
-```
+
+https://github.com/user-attachments/assets/18b7d5b6-932e-4e64-a2fc-527ae59b1a16
+
+
+
+
 
 ---
 
