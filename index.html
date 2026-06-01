@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robotic Arm Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:Arial,sans-serif; background:#f0f0f0; }
+
+  .topbar {
+    background:#fff; padding:14px 24px;
+    border-bottom:2px solid #ddd;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .topbar h1 { font-size:16px; }
+  .live { color:green; font-size:12px; font-weight:bold; }
+
+  .nav { display:flex; background:#333; align-items:center; }
+  .nav button {
+    flex:1; padding:12px; border:none;
+    background:transparent; color:#aaa;
+    font-size:13px; font-weight:bold;
+    cursor:pointer; border-bottom:3px solid transparent;
+  }
+  .nav button.active { color:#fff; border-color:#e8622a; }
+  .nav .admin-link {
+    padding:8px 18px; background:#e8622a; color:#fff;
+    border:none; font-size:12px; font-weight:bold;
+    cursor:pointer; margin:0 12px; border-radius:6px;
+  }
+
+  .page { display:none; padding:20px; max-width:960px; margin:0 auto; }
+  .page.active { display:block; }
+
+  .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .card { background:#fff; border-radius:8px; padding:16px; text-align:center; border:1px solid #ddd; }
+  .card .num { font-size:36px; font-weight:bold; margin:6px 0; }
+  .card .lbl { font-size:11px; color:#888; text-transform:uppercase; }
+  .card.red   .num { color:#d63031; }
+  .card.blue  .num { color:#0984e3; }
+  .card.green .num { color:#00b894; }
+  .card.total .num { color:#e17055; }
+
+  .panel { background:#fff; border-radius:8px; border:1px solid #ddd; padding:16px; margin-bottom:16px; }
+  .panel h3 { font-size:12px; text-transform:uppercase; color:#888; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid #eee; }
+
+  .bar-row { margin-bottom:12px; }
+  .bar-info { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; color:#555; }
+  .bar-track { height:10px; background:#eee; border-radius:5px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:5px; transition:width .5s; }
+  .bar-fill.red   { background:#d63031; }
+  .bar-fill.blue  { background:#0984e3; }
+  .bar-fill.green { background:#00b894; }
+
+  .arm-badge { display:inline-block; padding:6px 16px; border-radius:20px; font-size:12px; font-weight:bold; margin-bottom:16px; }
+  .arm-badge.idle    { background:#e8f8ee; color:#00b894; }
+  .arm-badge.sorting { background:#fff4e8; color:#e17055; }
+
+  /* ══ GAMEPAD ══ */
+  .gp-page { display:flex; flex-direction:column; align-items:center; padding:30px 20px; gap:28px; }
+
+  .gp-circle {
+    width:380px; height:380px;
+    background:#2d2d2d;
+    border-radius:50%;
+    position:relative;
+    box-shadow:0 8px 32px rgba(0,0,0,0.2);
+  }
+
+  .gp-btn {
+    position:absolute;
+    width:68px; height:68px;
+    border:none; border-radius:10px;
+    font-size:24px; font-weight:bold;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff;
+    background:#4a4a4a;
+    border:2px solid #666;
+    box-shadow:0 3px 8px rgba(0,0,0,0.4);
+    transition:transform .1s, background .1s;
+  }
+  .gp-btn:active { transform:scale(0.92); background:#555; }
+
+  /* top-bottom: centered horizontally at left=(380-68)/2 = 156 */
+  /* vertical spacing: shoulder at 14px, elbow at 96px from edge */
+
+  .btn-shoulder-up   { top:14px;   left:156px; border-radius:10px 10px 6px 6px; }
+  .btn-elbow-up      { top:96px;   left:156px; border-radius:10px 10px 6px 6px; }
+  .btn-elbow-down    { bottom:96px; left:156px; border-radius:6px 6px 10px 10px; }
+  .btn-shoulder-down { bottom:14px; left:156px; border-radius:6px 6px 10px 10px; }
+
+  /* left-right: centered vertically at top=(380-68)/2 = 156 */
+  .btn-base-left  { top:156px; left:14px;   border-radius:10px 6px 6px 10px; }
+  .btn-base-right { top:156px; right:14px;  border-radius:6px 10px 10px 6px; }
+
+  /* center gripper */
+  .btn-grip {
+    top:156px; left:156px;
+    width:68px; height:68px;
+    border-radius:50%;
+    font-size:26px;
+    border:3px solid #888;
+    background:#3a3a3a;
+  }
+
+  /* labels below circle */
+  .gp-legend {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px 30px;
+    font-size:12px;
+    color:#666;
+  }
+  .gp-legend-item { display:flex; align-items:center; gap:8px; }
+  .gp-legend-arrow { font-size:14px; color:#888; }
+
+  .home-btn {
+    padding:12px 48px; border:none; border-radius:8px;
+    font-size:14px; font-weight:bold; cursor:pointer;
+    background:#636e72; color:#fff;
+  }
+  .home-btn:hover { opacity:.85; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🦾 Color Sorting Robotic Arm</h1>
+  <span class="live">● LIVE</span>
+</div>
+
+<div class="nav">
+  <button class="active" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+  <button onclick="showPage('servos',this)">🕹️ Servo Control</button>
+  <button class="admin-link" onclick="window.location.href='/admin'">📈 Admin</button>
+</div>
+
+<!-- ════ DASHBOARD ════ -->
+<div class="page active" id="page-dashboard">
+  <div style="margin:16px 0">
+    <span class="arm-badge idle" id="arm-status">● IDLE</span>
+  </div>
+  <div class="cards">
+    <div class="card total"><div class="lbl">Total</div><div class="num" id="total">0</div></div>
+    <div class="card red">  <div class="lbl">Red</div>  <div class="num" id="c-red">0</div></div>
+    <div class="card blue"> <div class="lbl">Blue</div> <div class="num" id="c-blue">0</div></div>
+    <div class="card green"><div class="lbl">Green</div><div class="num" id="c-green">0</div></div>
+  </div>
+
+</div>
+
+<!-- ════ SERVO GAMEPAD ════ -->
+<div class="page" id="page-servos">
+  <div class="gp-page">
+
+    <div class="gp-circle">
+
+      <!-- Shoulder top -->
+      <button class="gp-btn btn-shoulder-down"
+        onmousedown="startMove(1,-1)" onmouseup="stopMove()"
+        ontouchstart="startMove(1,-1)" ontouchend="stopMove()">▼</button>
+
+      <!-- Elbow top -->
+      <button class="gp-btn btn-elbow-down"
+        onmousedown="startMove(2,1); startMove(5,1);" onmouseup="stopMove()"
+        ontouchstart="startMove(2,1); startMove(5,1);" ontouchend="stopMove()">▼</button>
+
+      <!-- Base left -->
+      <button class="gp-btn btn-base-left"
+        onmousedown="startMove(0,-1)" onmouseup="stopMove()"
+        ontouchstart="startMove(0,-1)" ontouchend="stopMove()">◀</button>
+
+      <!-- Gripper center -->
+      <button class="gp-btn btn-grip" id="grip-btn" onclick="toggleGrip()">✊</button>
+
+      <!-- Base right -->
+      <button class="gp-btn btn-base-right"
+        onmousedown="startMove(0,1)" onmouseup="stopMove()"
+        ontouchstart="startMove(0,1)" ontouchend="stopMove()">▶</button>
+
+      <!-- Elbow bottom -->
+      <button class="gp-btn btn-elbow-up"
+        onmousedown="startMove(2,-1); startMove(5,-1);" onmouseup="stopMove()"
+        ontouchstart="startMove(2,-1); startMove(5,-1);" ontouchend="stopMove()">▲</button>
+
+      <!-- Shoulder bottom -->
+      <button class="gp-btn btn-shoulder-up"
+        onmousedown="startMove(1,1)" onmouseup="stopMove()"
+        ontouchstart="startMove(1,1)" ontouchend="stopMove()">▲</button>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="gp-legend">
+      <div class="gp-legend-item"><span class="gp-legend-arrow">▲▼</span> Shoulder — outer buttons</div>
+      <div class="gp-legend-item"><span class="gp-legend-arrow">▲▼</span> Elbow — inner buttons</div>
+      <div class="gp-legend-item"><span class="gp-legend-arrow">◀▶</span> Base — left / right</div>
+      <div class="gp-legend-item"><span class="gp-legend-arrow">✊</span> Gripper — center</div>
+    </div>
+
+    <button class="home-btn"
+      onclick="fetch('/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cmd:'HOME'})})">
+      🏠 Go Home
+    </button>
+
+  </div>
+</div>
+
+<script>
+const socket    = io();
+const HOME_POS  = [370, 360, 200, 320, 200, 320];
+let servoValues = [...HOME_POS];
+let gripClosed  = false;
+let moveInterval = null;
+
+socket.on("update", data => updateUI(data));
+
+function updateUI(data) {
+  document.getElementById("total").innerText   = data.total || 0;
+  document.getElementById("c-red").innerText   = data.red   || 0;
+  document.getElementById("c-blue").innerText  = data.blue  || 0;
+  document.getElementById("c-green").innerText = data.green || 0;
+
+  const pct = v => Math.min(100, Math.round((v||0)/10*100));
+  document.getElementById("b-red").style.width   = pct(data.red)   + "%";
+  document.getElementById("b-blue").style.width  = pct(data.blue)  + "%";
+  document.getElementById("b-green").style.width = pct(data.green) + "%";
+  document.getElementById("l-red").innerText   = (data.red  ||0) + "/10";
+  document.getElementById("l-blue").innerText  = (data.blue ||0) + "/10";
+  document.getElementById("l-green").innerText = (data.green||0) + "/10";
+
+  const st = data.armStatus || "IDLE";
+  const badge = document.getElementById("arm-status");
+  badge.innerText = "● " + st;
+  badge.className = "arm-badge " + (st==="IDLE" ? "idle" : "sorting");
+
+  if (data.servos) servoValues = [...data.servos];
+}
+
+function startMove(ch, dir) {
+  stopMove();
+  doMove(ch, dir);
+  moveInterval = setInterval(() => doMove(ch, dir), 120);
+}
+function stopMove() {
+  if (moveInterval) { clearInterval(moveInterval); moveInterval = null; }
+}
+async function doMove(id, dir) {
+  let v = Math.max(130, Math.min(530, servoValues[id] + dir * 5));
+  servoValues[id] = v;
+  try {
+    await fetch("/servo", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, value:v})
+    });
+  } catch(e) {}
+}
+function toggleGrip() {
+  gripClosed = !gripClosed;
+  const val = gripClosed ? 340 : 200;
+  servoValues[4] = val;
+  document.getElementById("grip-btn").innerText = gripClosed ? "✋" : "✊";
+  fetch("/servo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:4,value:val})});
+}
+function showPage(page, btn) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav button:not(.admin-link)").forEach(b => b.classList.remove("active"));
+  document.getElementById("page-"+page).classList.add("active");
+  btn.classList.add("active");
+}
+fetch("/data").then(r=>r.json()).then(updateUI).catch(()=>{});
+</script>
+</body>
+</html>

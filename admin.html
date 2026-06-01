@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — Robotic Arm</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial,sans-serif; background:#f0f2f5; color:#1a1a2e; }
+
+.topbar {
+  background:#fff; padding:14px 28px;
+  border-bottom:2px solid #e0e0e0;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:10;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.topbar h1 { font-size:16px; font-weight:700; }
+.topbar-right { display:flex; gap:10px; align-items:center; }
+.badge { font-size:11px; font-weight:bold; padding:4px 12px; border-radius:20px; background:#e8f0fe; color:#2563eb; }
+.refresh-btn { font-size:12px; padding:6px 14px; border:none; border-radius:6px; background:#2563eb; cursor:pointer; color:#fff; font-weight:bold; }
+.refresh-btn:hover { background:#1d4ed8; }
+.back-btn { font-size:12px; padding:6px 14px; border:1px solid #ddd; border-radius:6px; background:#fff; cursor:pointer; text-decoration:none; color:#555; }
+.back-btn:hover { background:#f5f5f5; }
+
+.container { max-width:1200px; margin:0 auto; padding:24px; }
+
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.stat-card { background:#fff; border-radius:12px; padding:20px; border:1px solid #e8e8e8; }
+.stat-card .label { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#888; margin-bottom:8px; }
+.stat-card .value { font-size:32px; font-weight:700; margin-bottom:4px; }
+.stat-card .sub { font-size:12px; color:#aaa; }
+.stat-card.red   .value { color:#d63031; }
+.stat-card.blue  .value { color:#0984e3; }
+.stat-card.green .value { color:#00b894; }
+.stat-card.total .value { color:#2563eb; }
+
+.tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid #e8e8e8; overflow-x:auto; }
+.tab-btn { padding:10px 20px; border:none; background:transparent; font-size:13px; font-weight:bold; color:#888; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; transition:all .2s; }
+.tab-btn.active { color:#2563eb; border-color:#2563eb; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.chart-card { background:#fff; border-radius:12px; padding:20px; border:1px solid #e8e8e8; margin-bottom:16px; }
+.chart-card h3 { font-size:13px; font-weight:700; color:#333; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+.chart-wrap { position:relative; height:240px; }
+
+.acc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.acc-card { background:#fff; border-radius:12px; padding:16px; border:1px solid #e8e8e8; text-align:center; }
+.acc-card .acc-label { font-size:12px; color:#888; margin-bottom:8px; font-weight:bold; }
+.acc-circle { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; margin:0 auto 8px; border:4px solid; }
+.acc-card .acc-detail { font-size:11px; color:#aaa; }
+
+.table-card { background:#fff; border-radius:12px; padding:20px; border:1px solid #e8e8e8; }
+.table-card h3 { font-size:13px; font-weight:700; color:#333; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #f0f0f0; }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+th { text-align:left; padding:10px 14px; color:#888; font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:2px solid #f0f0f0; background:#fafafa; }
+td { padding:10px 14px; border-bottom:1px solid #f5f5f5; color:#444; }
+tr:hover td { background:#fafafa; }
+tr:last-child td { border-bottom:none; }
+.color-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+.dot-red   { background:#d63031; }
+.dot-blue  { background:#0984e3; }
+.dot-green { background:#00b894; }
+.success-badge { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:bold; }
+.success-y { background:#e8f8ee; color:#00b894; }
+.success-n { background:#ffe8e8; color:#d63031; }
+.empty-msg { text-align:center; color:#aaa; padding:30px; font-size:13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🔧 Admin Dashboard — Robotic Arm Analytics</h1>
+  <div class="topbar-right">
+    <span class="badge" id="last-update">Loading...</span>
+    <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+    <a href="/" class="back-btn">← Dashboard</a>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Today Stats -->
+  <div class="stat-grid">
+    <div class="stat-card total">
+      <div class="label">Total Today</div>
+      <div class="value" id="s-total">—</div>
+      <div class="sub">blocks sorted</div>
+    </div>
+    <div class="stat-card red">
+      <div class="label">Red Today</div>
+      <div class="value" id="s-red">—</div>
+      <div class="sub">blocks</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="label">Blue Today</div>
+      <div class="value" id="s-blue">—</div>
+      <div class="sub">blocks</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Green Today</div>
+      <div class="value" id="s-green">—</div>
+      <div class="sub">blocks</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('daily',this)">📅 Daily (30 days)</button>
+    <button class="tab-btn" onclick="switchTab('weekly',this)">📆 Weekly (8 weeks)</button>
+    <button class="tab-btn" onclick="switchTab('hourly',this)">🕐 Hourly (today)</button>
+    <button class="tab-btn" onclick="switchTab('comparison',this)">🎨 Color Comparison</button>
+    <button class="tab-btn" onclick="switchTab('accuracy',this)">🎯 Accuracy</button>
+    <button class="tab-btn" onclick="switchTab('recent',this)">📋 Recent Events</button>
+  </div>
+
+  <!-- DAILY -->
+  <div class="tab-content active" id="tab-daily">
+    <div class="chart-card">
+      <h3>Daily Sorting Count — Last 30 Days</h3>
+      <div class="chart-wrap"><canvas id="chart-daily"></canvas></div>
+    </div>
+  </div>
+
+  <!-- WEEKLY -->
+  <div class="tab-content" id="tab-weekly">
+    <div class="chart-card">
+      <h3>Weekly Sorting Count — Last 8 Weeks</h3>
+      <div class="chart-wrap"><canvas id="chart-weekly"></canvas></div>
+    </div>
+  </div>
+
+  <!-- HOURLY -->
+  <div class="tab-content" id="tab-hourly">
+    <div class="chart-card">
+      <h3>Hourly Activity — Today</h3>
+      <div class="chart-wrap"><canvas id="chart-hourly"></canvas></div>
+    </div>
+  </div>
+
+  <!-- COMPARISON -->
+  <div class="tab-content" id="tab-comparison">
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Color Distribution — All Time</h3>
+        <div class="chart-wrap"><canvas id="chart-pie"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Quantity Comparison by Color</h3>
+        <div class="chart-wrap"><canvas id="chart-bar-colors"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCURACY -->
+  <div class="tab-content" id="tab-accuracy">
+    <div class="acc-grid" id="acc-cards"></div>
+    <div class="chart-card">
+      <h3>Successful vs Failed — by Color</h3>
+      <div class="chart-wrap"><canvas id="chart-accuracy"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RECENT -->
+  <div class="tab-content" id="tab-recent">
+    <div class="table-card">
+      <h3>Recent Sorting Events — Last 50</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Color</th>
+              <th>X (cm)</th>
+              <th>Y (cm)</th>
+              <th>Timestamp</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="recent-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let charts = {};
+
+const COLORS = {
+  RED:   { bg: 'rgba(214,48,49,0.75)',  border: '#d63031' },
+  BLUE:  { bg: 'rgba(9,132,227,0.75)',  border: '#0984e3' },
+  GREEN: { bg: 'rgba(0,184,148,0.75)',  border: '#00b894' },
+};
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'top', labels: { font: { size: 12 } } } }
+};
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+// ── Today ──
+async function loadToday() {
+  const d = await fetch('/api/stats/today').then(r => r.json());
+  document.getElementById('s-total').textContent = d.total  || 0;
+  document.getElementById('s-red').textContent   = d.RED    || 0;
+  document.getElementById('s-blue').textContent  = d.BLUE   || 0;
+  document.getElementById('s-green').textContent = d.GREEN  || 0;
+}
+
+// ── Daily ──
+async function loadDaily() {
+  const rows = await fetch('/api/stats/last30days').then(r => r.json());
+  const days = {};
+  rows.forEach(r => {
+    if (!days[r.day]) days[r.day] = { RED:0, BLUE:0, GREEN:0 };
+    days[r.day][r.color] = r.count;
+  });
+  const labels = Object.keys(days).sort();
+  const datasets = ['RED','BLUE','GREEN'].map(c => ({
+    label: c,
+    data: labels.map(l => days[l]?.[c] || 0),
+    backgroundColor: COLORS[c].bg,
+    borderColor: COLORS[c].border,
+    borderWidth: 1.5,
+    borderRadius: 4,
+  }));
+  destroyChart('daily');
+  charts.daily = new Chart(document.getElementById('chart-daily'), {
+    type: 'bar',
+    data: { labels: labels.map(l => l.slice(5)), datasets },
+    options: { ...chartDefaults, scales: { x: { stacked:true, grid:{display:false} }, y: { stacked:true, beginAtZero:true } } }
+  });
+}
+
+// ── Weekly ──
+async function loadWeekly() {
+  const rows = await fetch('/api/stats/weekly').then(r => r.json());
+  const weeks = {};
+  rows.forEach(r => {
+    if (!weeks[r.week]) weeks[r.week] = { RED:0, BLUE:0, GREEN:0 };
+    weeks[r.week][r.color] = r.count;
+  });
+  const labels = Object.keys(weeks).sort();
+  const datasets = ['RED','BLUE','GREEN'].map(c => ({
+    label: c,
+    data: labels.map(l => weeks[l]?.[c] || 0),
+    backgroundColor: COLORS[c].bg,
+    borderColor: COLORS[c].border,
+    borderWidth: 1.5,
+    borderRadius: 4,
+  }));
+  destroyChart('weekly');
+  charts.weekly = new Chart(document.getElementById('chart-weekly'), {
+    type: 'bar',
+    data: { labels, datasets },
+    options: { ...chartDefaults, scales: { x:{grid:{display:false}}, y:{beginAtZero:true} } }
+  });
+}
+
+// ── Hourly ──
+async function loadHourly() {
+  const rows = await fetch('/api/stats/hourly').then(r => r.json());
+  const hourMap = {};
+  rows.forEach(r => { hourMap[String(r.hour).padStart(2,'0')] = r.count; });
+  const hours = Array.from({length:24}, (_,i) => String(i).padStart(2,'0'));
+  destroyChart('hourly');
+  charts.hourly = new Chart(document.getElementById('chart-hourly'), {
+    type: 'line',
+    data: {
+      labels: hours.map(h => h + ':00'),
+      datasets: [{
+        label: 'Blocks sorted',
+        data: hours.map(h => hourMap[h] || 0),
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.1)',
+        fill: true, tension: 0.4,
+        pointRadius: 4, pointBackgroundColor: '#2563eb',
+      }]
+    },
+    options: { ...chartDefaults, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{beginAtZero:true}} }
+  });
+}
+
+// ── Colors ──
+async function loadColors() {
+  const rows = await fetch('/api/stats/colors').then(r => r.json());
+  if (!rows.length) return;
+  const labels = rows.map(r => r.color);
+  const counts  = rows.map(r => r.count);
+  const bgs     = rows.map(r => COLORS[r.color]?.bg || '#ccc');
+  const borders = rows.map(r => COLORS[r.color]?.border || '#aaa');
+
+  destroyChart('pie');
+  charts.pie = new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data:counts, backgroundColor:bgs, borderColor:borders, borderWidth:2 }] },
+    options: { ...chartDefaults, plugins:{legend:{position:'bottom'}} }
+  });
+
+  destroyChart('bar-colors');
+  charts['bar-colors'] = new Chart(document.getElementById('chart-bar-colors'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'Total blocks', data:counts, backgroundColor:bgs, borderColor:borders, borderWidth:1.5, borderRadius:8 }] },
+    options: { ...chartDefaults, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}},y:{beginAtZero:true}} }
+  });
+}
+
+// ── Accuracy ──
+async function loadAccuracy() {
+  const d = await fetch('/api/stats/accuracy').then(r => r.json());
+  const ov = d.overall;
+
+  const colorCards = d.by_color.map(c => {
+    const col = COLORS[c.color] || { border:'#888' };
+    return `
+      <div class="acc-card">
+        <div class="acc-label">${c.color}</div>
+        <div class="acc-circle" style="border-color:${col.border};color:${col.border};">${c.accuracy || 0}%</div>
+        <div class="acc-detail">${c.successful}/${c.total} sorted</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('acc-cards').innerHTML = `
+    <div class="acc-card">
+      <div class="acc-label">Overall</div>
+      <div class="acc-circle" style="border-color:#2563eb;color:#2563eb;">${ov.accuracy || 0}%</div>
+      <div class="acc-detail">${ov.successful || 0}/${ov.total || 0} sorted</div>
+    </div>` + colorCards;
+
+  destroyChart('accuracy');
+  charts.accuracy = new Chart(document.getElementById('chart-accuracy'), {
+    type: 'bar',
+    data: {
+      labels: d.by_color.map(c => c.color),
+      datasets: [
+        { label:'Successful', data: d.by_color.map(c => c.successful), backgroundColor: d.by_color.map(c => COLORS[c.color]?.bg||'#ccc'), borderRadius:6 },
+        { label:'Failed',     data: d.by_color.map(c => c.total - c.successful), backgroundColor:'rgba(200,200,200,0.5)', borderRadius:6 }
+      ]
+    },
+    options: { ...chartDefaults, scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}} }
+  });
+}
+
+// ── Recent ──
+async function loadRecent() {
+  const rows = await fetch('/api/stats/recent').then(r => r.json());
+  const tbody = document.getElementById('recent-table');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No data yet — start sorting blocks!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr>
+      <td style="color:#aaa">${i+1}</td>
+      <td><span class="color-dot dot-${r.color.toLowerCase()}"></span>${r.color}</td>
+      <td>${r.x}</td>
+      <td>${r.y}</td>
+      <td>${r.timestamp}</td>
+      <td><span class="success-badge ${r.success ? 'success-y':'success-n'}">${r.success ? '✓ OK':'✗ FAIL'}</span></td>
+    </tr>`).join('');
+}
+
+async function loadAll() {
+  document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  await Promise.all([loadToday(), loadDaily(), loadWeekly(), loadHourly(), loadColors(), loadAccuracy(), loadRecent()]);
+}
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>
