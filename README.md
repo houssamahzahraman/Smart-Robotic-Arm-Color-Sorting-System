@@ -2,11 +2,7 @@
 
 > **Automated color-based object sorting using Computer Vision, Inverse Kinematics, IoT, and a real-time Web Dashboard**
 
-**Lebanese International University — School of Engineering**
-**CENG495 Senior Project — Spring 2025–2026**
-
-**Team:** Hussam Zahraman · Mosaab Zein · Oday Kassar
-**Supervisor:** Dr. Bilal Daass
+**Team:** Hussam Zahraman
 
 ---
 
@@ -35,7 +31,8 @@ This project presents a complete low-cost intelligent system for automatic color
 The system detects the color and real-world position of colored blocks placed in a calibrated workspace zone using a USB webcam and the OpenCV library. It then computes the required servo joint angles using an embedded Inverse Kinematics solver on the ESP8266 microcontroller, moves the arm to pick up the block, and places it into the correct sorting box.
 
 ```
-[ PHOTO HERE — Overview of the complete system on the workbench ]
+<img width="1280" height="960" alt="photo_2026-05-18_20-05-13" src="https://github.com/user-attachments/assets/bfef8fac-db3d-49c7-bcf3-320647277b8b" />
+
 ```
 
 ---
